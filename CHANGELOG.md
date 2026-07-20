@@ -11,6 +11,84 @@ golven doorgevoerd: **golf 1** op 2026-06-25 (BSN-lek, CLI-vlaggen, packaging,
 repo-URL, hygiëne) en **consolidatie + scoring-guard** op 2026-06-26. De item-codes
 (V01, V02, …) verwijzen naar de interne verbeteringen-prioriteitenmatrix.
 
+## [1.1.4] — 2026-07-20
+
+Gemengde uitgave: de vierde golf fase 1 (code) en de uniformering van de documentatie. Geen van
+beide wijzigt het gedrag van het script.
+
+Vierde golf, fase 1: structurele opschoning zonder gedragswijziging op het standaardpad
+(`CombinedAnonymizer`, taal `nl`, default mask). Byte-identiek geverifieerd via de
+regressie-harness (regex-snapshot 0 delta; volledige recall-gate OK, alle categorieën 1,00,
+residu-PII 0). (`src/anonymizer/anonymizer.py`)
+
+### Gewijzigd
+- **NER-whitelist als instance-state i.p.v. module-globaal** (V13). De muteerbare module-globale
+  `WEAK_NER_WHITELIST` is verwijderd. `RegexAnonymizer`/`ListAnonymizer` exposen hun output-tags
+  nu als instance-state (`weak_ner_tags`); `NERAnonymizer` accepteert ze expliciet via de nieuwe
+  parameter `extra_weak_whitelist`, en `CombinedAnonymizer` bedraadt regex+lijst → NER. Dit
+  voorkomt state-bleed tussen instanties (en onbegrensde groei van de lijst) in langlopende
+  processen. **Gedragswijziging voor direct API-gebruik:** een standalone `NERAnonymizer()` die
+  niet via `CombinedAnonymizer` loopt, erft niet langer impliciet de tags van eerder
+  geconstrueerde Regex/List-anonymizers; geef die desgewenst expliciet mee via
+  `extra_weak_whitelist`. Het `CombinedAnonymizer`-pad is output-equivalent (0 snapshot-delta).
+- **Postcode-postprocessing robuuster** (V15). De hardcoded `'<Postcode>'`-tag in de
+  regex-postprocessing wordt nu via `TRANSLATIONS`/`mask` opgebouwd, net als de overige tags.
+  No-op voor `nl` en `en` (beide vertalen `Postcode → "Postcode"`) en voor de default mask; tevens
+  een latente fix voor afwijkende mask-/taalconfiguraties, waar de oude hardcoded tag niet op de
+  werkelijk geproduceerde tag matchte.
+- **Order-contract `TAGGED_PATTERNS` vastgelegd** (V18). De betekenisvolle insertievolgorde
+  (specifiek → breed) is expliciet gedocumenteerd in de `TAGGED_PATTERNS`-header en de
+  `_build_patterns`-docstring; de characterization-snapshot in de regressie-harness blijft de
+  wachter. Geen codewijziging.
+- **Whitelist-lus: context-slice uit de per-item-lus gehesen** (V19, deel). De
+  context-slice + lowercasing wordt nu één keer per woordpositie berekend i.p.v. per
+  whitelist-item (constante-factor-winst, output-equivalent). De Aho-Corasick-herschrijving is
+  bewust uitgesteld (output-equivalentierisico).
+
+### Documentatie
+
+Los van de vierde golf: uniformering van de documentatie, in afstemming met BZK. Vastgelegde
+besluiten: de README blijft tweetalig in één bestand en wordt gelijkgetrokken (NL naar het
+detailniveau van EN), de CHANGELOG blijft volledig Nederlands, en de licentie blijft gesplitst
+in `LICENSE.md` (EN, canoniek) en `LICENSE_NL.md`. Deze stap maakt eerst de Engelse helft
+feitelijk kloppend; het gelijktrekken van de Nederlandse helft volgt. Raakt geen code.
+
+- **Onbewezen vergelijkende claims verwijderd** (V24, deel). Twee passages stelden dat het script
+  beter presteert dan "the former script" respectievelijk "the previously used commercial
+  solution". Die vergelijkingen zijn niet reproduceerbaar onderbouwd en zijn vervangen door een
+  verwijzing naar de beschreven evaluatieprocedure. De prestatiecijfers zelf (recall 93%,
+  precisie 92%, F3 93%) blijven staan: die zijn expliciet toegeschreven aan de meting bij
+  Gemeente Rotterdam en dragen al een voorbehoud over generaliseerbaarheid.
+- **Verouderde whitelist-instructie gecorrigeerd.** De NER-configuratiesectie verwees naar het
+  bewerken van `WEAK_NER_WHITELIST` en `STRONG_NER_WHITELIST`. Sinds V13 zijn dat instance-
+  attributen die bij constructie uit Excel worden opgebouwd; de instructie verwijst nu naar
+  `Whitelist Basic.xlsx` en de Whitelists-sectie.
+- **NER-Organization gedocumenteerd.** De detectie van organisatienamen was wel geïmplementeerd
+  (label-mapping, drempel 0,84) maar ontbrak in de opsomming van entiteitstypen en in de
+  label-naar-tag-mapping. Beide zijn aangevuld.
+
+- **Nederlandse helft van de README gelijkgetrokken.** De Nederlandse helft was in de praktijk een
+  beknopte samenvatting van de Engelse: 309 tegen 546 regels (57%). De sectiestructuur was al 1:1,
+  maar hele instructieblokken ontbraken — onder meer het bewerken van de whitelist-sheets, de
+  regexvoorbeelden, de hoofdlettergevoeligheid bij lijsten, de NER-drempels en labels, de zes
+  generaliseerstappen, en de formules en confusion-matrixtermen bij de evaluatie. Alle secties
+  staan nu op hetzelfde detailniveau (560 tegen 569 regels, 98%). Doorgevoerd in vier delen langs
+  sectiegrenzen.
+
+### Toegevoegd
+
+- **Licentiesectie in de README** (beide helften, met ToC-vermelding). De README verwees nergens
+  naar de licentie. De sectie benoemt EUPL-1.2 en verwijst naar beide taalversies; de
+  bestandsopzet blijft ongewijzigd.
+- **Codecommentaar consistent Engelstalig** (`anonymizer.py`, `scoring.py`). Het oorspronkelijke
+  script is volledig Engelstalig becommentarieerd; het Nederlandstalige commentaar dat in latere
+  wijzigingsrondes is toegevoegd, is teruggebracht naar het Engels. Het betreft dertien blokken en
+  één docstring. Geverifieerd dat uitsluitend commentaar- en docstringregels zijn gewijzigd en
+  geen enkele coderegel. Bijvangst: hiermee verdwijnen de laatste niet-ASCII-tekens uit de
+  broncommentaren.
+
+---
+
 ## [1.1.3] — 2026-06-29
 
 Derde golf: precisie van de Credit_Card-detectie verhoogd. Raakt de maskeer-output, dus

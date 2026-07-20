@@ -77,9 +77,9 @@ SYMSPELL = True # If True, enable SymSpell typo correction in ListAnonymizer
 PRINT_NER_CONFIDENCE = False  # If True, print confidence scores in NER tags (e.g., <[Name, C0.85]>)
 TAG_LANGUAGE = 'nl' # Language of tags, currently 'nl' for Dutch or 'en' for English
 
-# Default-lijsten zijn als package-data meegebundeld (zie pyproject
-# [tool.setuptools.package-data]) en worden package-relatief opgelost, zodat ze
-# ook na `pip install` vindbaar zijn -- niet relatief aan de werkmap.
+# Default lists are bundled as package-data (see pyproject
+# [tool.setuptools.package-data]) and resolved relative to the package, so they
+# remain locatable after `pip install` -- not relative to the working directory.
 LIST_PATH = str(resources.files(__package__).joinpath("input_files", "ListClassifier Basic.xlsx")) # Default blacklist for ListAnonymizer
 WHITELIST_PATH = str(resources.files(__package__).joinpath("input_files", "Whitelist Basic.xlsx")) # Default whitelist for both ListAnonymizer and NERAnonymizer
 
@@ -95,7 +95,7 @@ with translation_file.open("r", encoding="utf-8") as f:
 
 # Exported symbols
 __all__ = ["RegexAnonymizer", "ListAnonymizer", "NERAnonymizer", "CombinedAnonymizer", "TAGGED_PATTERNS", "__version__"]
-__version__ = "1.1.3"
+__version__ = "1.1.4"
 
 # Logging setup
 LOGGER = logging.getLogger(__name__)
@@ -123,12 +123,11 @@ _MONTHS = (
 # The negative‑lookbehind / look‑ahead guards ((?<!\w), (?!\w)) are used to  #
 # ensure word boundaries without consuming punctuation like € or ‑.           #
 #                                                                             #
-# ORDER CONTRACT: de invoegvolgorde is betekenisvol. _build_patterns()        #
-# behoudt die (dict-insertievolgorde, Python 3.7+) en anonymize() past de     #
-# patronen exact in deze volgorde toe, zodat specifiekere patronen vóór       #
-# bredere maskeren. Herorden entries NIET zonder de output opnieuw te         #
-# verifiëren; de characterization-snapshot in de regressie-harness bewaakt    #
-# dit.                                                                         #
+# ORDER CONTRACT: insertion order is meaningful. _build_patterns() preserves  #
+# it (dict insertion order, Python 3.7+) and anonymize() applies the patterns #
+# in exactly this order, so that more specific patterns mask before broader   #
+# ones. Do NOT reorder entries without re-verifying the output; the           #
+# characterization snapshot in the regression harness guards this.            #
 # --------------------------------------------------------------------------- #
 
 TAGGED_PATTERNS: Dict[str, str] = {
@@ -317,8 +316,8 @@ def _build_patterns(active_tags: Iterable[str] | None = None) -> Dict[str, Patte
     """
     Pre‑compile regexes for speed and maintainability.
 
-    Behoudt de TAGGED_PATTERNS-insertievolgorde (specificiteitscontract — zie de
-    TAGGED_PATTERNS-header); anonymize() steunt op deze volgorde.
+    Preserves the TAGGED_PATTERNS insertion order (specificity contract — see the
+    TAGGED_PATTERNS header); anonymize() relies on this order.
     """
     tags = active_tags or TAGGED_PATTERNS.keys()
     
@@ -472,9 +471,9 @@ class RegexAnonymizer:
         elif mask == "<{tag}>" and not self._distinct_tags:
             self._mask = "<{tag}>"  # Uniform format
 
-        # Expose this pass' output-tag formats as instance state (V13: geen module-globale
-        # mutatie meer). Een downstream NER-pass kan ze whitelisten zodat reeds geproduceerde
-        # tags niet opnieuw gemaskeerd worden; CombinedAnonymizer bedraadt dit.
+        # Expose this pass' output-tag formats as instance state (V13: no more module-global
+        # mutation). A downstream NER pass can whitelist them so that already-produced tags
+        # are not masked again; CombinedAnonymizer wires this up.
         self.weak_ner_tags: list[str] = []
         for tag in self._patterns.keys():
             tag_format = mask.format(tag=TRANSLATIONS[TAG_LANGUAGE].get(tag, tag))
@@ -503,8 +502,8 @@ class RegexAnonymizer:
         # Additional masking for ID numbers after indicators
         text = self._mask_additional_id_numbers(text)
 
-        # Post processing: mask numbers after postcode tags. Bouw de tag via
-        # TRANSLATIONS/mask i.p.v. een hardcoded '<Postcode>' (no-op voor nl/en).
+        # Post processing: mask numbers after postcode tags. Build the tag via
+        # TRANSLATIONS/mask instead of a hardcoded '<Postcode>' (no-op for nl/en).
         postcode_tag = self._mask.format(tag=TRANSLATIONS[TAG_LANGUAGE].get("Postcode", "Postcode"))
         text = re.sub(rf'({re.escape(postcode_tag)})\s+(\d+[A-Za-z]?)\b', postcode_tag, text)
         return text
@@ -520,9 +519,9 @@ class RegexAnonymizer:
         text = pattern.sub(rf'\1\2{self._mask.format(tag=TRANSLATIONS[TAG_LANGUAGE].get("ID_Number", "ID_Number"))}', text)
         return text
 
-    # BSN-indicatoren: een BSN-vormig getal in deze context is óók PII als het de
-    # elfproef faalt (fout ingevoerd maar reëel). Bewust strikt (geen letters tussen
-    # indicator en nummer) om over-maskering van willekeurige 9-cijferreeksen te voorkomen.
+    # BSN indicators: a BSN-shaped number in this context is PII even when it fails
+    # the eleven-test (mistyped but real). Deliberately strict (no letters between
+    # indicator and number) to avoid over-masking arbitrary 9-digit sequences.
     _BSN_CONTEXT_RE = re.compile(
         r"(?i)\b(bsn|burgerservicenummer)\b(\W{0,15}?)(\d{9}|\d{4}\.\d{2}\.\d{3})\b"
     )
@@ -546,10 +545,10 @@ class RegexAnonymizer:
         """
         mask = self._mask.format(tag=TRANSLATIONS[TAG_LANGUAGE].get("BSN", "BSN"))
 
-        # 1) Context-pass: behoud indicator + scheidingsteken, vervang alleen het nummer.
+        # 1) Context pass: keep indicator + separator, replace only the number.
         text = self._BSN_CONTEXT_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}{mask}", text)
 
-        # 2) Validity-pass op de rest (precisie: elders alleen 11-proef-geldige BSNs).
+        # 2) Validity pass on the remainder (precision: elsewhere only eleven-test-valid BSNs).
         def replace_if_valid(match: re.Match) -> str:
             bsn = match.group(0)
             if is_valid_bsn(bsn):
@@ -655,7 +654,7 @@ class ListAnonymizer:
         combined_name_list = []
         combined_name_case_sensitive = []
 
-        # Output-tag formats of this pass, as instance state (V13: geen module-global).
+        # Output-tag formats of this pass, as instance state (V13: no module-global).
         self.weak_ner_tags: list[str] = []
 
         # Add each sheet in the input Excel as a list in the ListAnonymizer dictionary
@@ -843,7 +842,7 @@ class ListAnonymizer:
             # Skip if this position is whitelisted (check with surrounding context)
             context_start = max(0, word_start - 20)
             context_end = min(len(text), word_end + 20)
-            # V19: hijs de context-slice + lower uit de per-item-lus (was n× herberekend).
+            # V19: hoist the context slice + lower out of the per-item loop (was recomputed n times).
             context = text[context_start:context_end]
             context_lower = context.lower()
             skip = False
@@ -939,8 +938,8 @@ class NERAnonymizer:
         # Normalize and combine the passed-in (regex/list pass) and Excel weak whitelist entries.
         weak_from_excel = [str(x).lower() for x in whitelist_ner["Weak"].dropna().tolist()]
         strong_from_excel = [str(x).lower() for x in whitelist_ner["Strong"].dropna().tolist()]
-        # V13: tags van eerdere passes komen nu expliciet binnen via extra_weak_whitelist
-        # (door CombinedAnonymizer bedraad) i.p.v. via een module-globale lijst.
+        # V13: tags from earlier passes now arrive explicitly via extra_weak_whitelist
+        # (wired up by CombinedAnonymizer) instead of through a module-global list.
         existing_weak = [str(x).lower() for x in (extra_weak_whitelist or []) if pd.notna(x)]
         self.WEAK_NER_WHITELIST = existing_weak + weak_from_excel
         self.STRONG_NER_WHITELIST = strong_from_excel
@@ -1052,8 +1051,8 @@ class CombinedAnonymizer:
         # Initialize all anonymizers
         self.regex_anonymizer = RegexAnonymizer(tags=regex_tags, mask=regex_mask, distinct_tags=distinct)
         self.list_anonymizer = ListAnonymizer(distinct_tags=distinct)
-        # V13: geef de output-tags van de regex+lijst-passes expliciet door aan NER
-        # (geen module-globale brug meer), zodat NER ze niet opnieuw maskeert.
+        # V13: pass the output tags of the regex+list passes explicitly to NER
+        # (no module-global bridge anymore), so NER does not mask them again.
         extra_weak = list(self.regex_anonymizer.weak_ner_tags)
         for tag_format in self.list_anonymizer.weak_ner_tags:
             if tag_format not in extra_weak:
@@ -1097,9 +1096,9 @@ class CombinedAnonymizer:
 # --------------------------------------------------------------------------- #
 
 def main() -> None:  # pragma: no cover – CLI wrapper
-    # De anonymizer-classes lezen deze module-globals bij constructie; main() zet ze
-    # (niet lokale variabelen). Declaratie staat boven elk gebruik van LIST_PATH/
-    # WHITELIST_PATH in deze functie (ook de argparse-defaults hieronder).
+    # The anonymizer classes read these module-globals at construction time; main()
+    # sets them (not local variables). The declaration precedes every use of
+    # LIST_PATH/WHITELIST_PATH in this function (including the argparse defaults below).
     global LIST_PATH, WHITELIST_PATH
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("input", type=Path, help=".xlsx file to read")

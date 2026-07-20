@@ -72,9 +72,9 @@ def score(df: pd.DataFrame, text_col: str, fp_col: str, fn_col: str) -> dict[str
     
     amount_masked = df[text_col].apply(_sum_masked)
     tp = sum(amount_masked) - fp # True positives
-    # Guard tegen deling door nul: bij niets-gemaskeerd (tp+fp==0) of geen
-    # positieven (tp+fn==0) is de metriek ongedefinieerd -> 0.0 (conventie
-    # sklearn zero_division=0), zodat de uitkomst altijd eindig blijft i.p.v. nan.
+    # Guard against division by zero: with nothing masked (tp+fp==0) or no
+    # positives (tp+fn==0) the metric is undefined -> 0.0 (sklearn
+    # zero_division=0 convention), so the result stays finite instead of nan.
     precision = tp / (tp + fp) if (tp + fp) else 0.0
     recall = tp / (tp + fn) if (tp + fn) else 0.0
     f_beta_denom = BETA**2 * precision + recall
