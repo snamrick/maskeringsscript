@@ -42,6 +42,34 @@ residu-PII 0). Geen versiebump. (`src/anonymizer/anonymizer.py`)
   whitelist-item (constante-factor-winst, output-equivalent). De Aho-Corasick-herschrijving is
   bewust uitgesteld (output-equivalentierisico).
 
+### Documentatie
+
+Los van de vierde golf: uniformering van de documentatie, in afstemming met BZK. Vastgelegde
+besluiten: de README blijft tweetalig in één bestand en wordt gelijkgetrokken (NL naar het
+detailniveau van EN), de CHANGELOG blijft volledig Nederlands, en de licentie blijft gesplitst
+in `LICENSE.md` (EN, canoniek) en `LICENSE_NL.md`. Deze stap maakt eerst de Engelse helft
+feitelijk kloppend; het gelijktrekken van de Nederlandse helft volgt. Raakt geen code.
+
+- **Onbewezen vergelijkende claims verwijderd** (V24, deel). Twee passages stelden dat het script
+  beter presteert dan "the former script" respectievelijk "the previously used commercial
+  solution". Die vergelijkingen zijn niet reproduceerbaar onderbouwd en zijn vervangen door een
+  verwijzing naar de beschreven evaluatieprocedure. De prestatiecijfers zelf (recall 93%,
+  precisie 92%, F3 93%) blijven staan: die zijn expliciet toegeschreven aan de meting bij
+  Gemeente Rotterdam en dragen al een voorbehoud over generaliseerbaarheid.
+- **Verouderde whitelist-instructie gecorrigeerd.** De NER-configuratiesectie verwees naar het
+  bewerken van `WEAK_NER_WHITELIST` en `STRONG_NER_WHITELIST`. Sinds V13 zijn dat instance-
+  attributen die bij constructie uit Excel worden opgebouwd; de instructie verwijst nu naar
+  `Whitelist Basic.xlsx` en de Whitelists-sectie.
+- **NER-Organization gedocumenteerd.** De detectie van organisatienamen was wel geïmplementeerd
+  (label-mapping, drempel 0,84) maar ontbrak in de opsomming van entiteitstypen en in de
+  label-naar-tag-mapping. Beide zijn aangevuld.
+
+### Toegevoegd
+
+- **Licentiesectie in de README** (EN-helft, met ToC-vermelding). De README verwees nergens naar
+  de licentie. De sectie benoemt EUPL-1.2 en verwijst naar beide taalversies; de bestandsopzet
+  blijft ongewijzigd.
+
 ---
 
 ## [1.1.3] — 2026-06-29

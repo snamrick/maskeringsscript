@@ -24,6 +24,7 @@ This repository is the published version of the anonymization tool, derived from
 - [How to Configure NER](#how-to-configure-ner)
 - [Steps to Generalize to New Organisation](#steps-to-generalize-to-new-organisation)
 - [Evaluation Scores](#evaluation-scores)
+- [License](#license)
 
 ---
 
@@ -129,7 +130,7 @@ The goal was to deliver a working Python script that automatically recognizes an
 - A working masking script that replaces traceable information in texts with neutral codes (e.g., `<Name>`, `<BSN>`)
 - The script works based on various techniques: fixed pattern recognition (such as for phone numbers), language analysis (NER: Named Entity Recognition), and list-based matching
 - Users can manage exceptions and additions themselves via lists and configuration files
-- The masking script performs well: it catches many correct cases (high recall) and masks few unnecessary words (good precision). The developed script scores better than the former script being used
+- The masking script performs well: it catches many correct cases (high recall) and masks few unnecessary words (good precision)
 - The script is written in Python and is ready to be shared as open source
 - Extensive documentation has been delivered for technical use
 
@@ -226,6 +227,7 @@ After detecting individual name components, the List Anonymizer performs additio
 Uses the GLiNER (Generalist and Lightweight Named Entity Recognition) model to detect contextual entities:
 - Names (Person names in various contexts)
 - Addresses (Location mentions)
+- Organisations (Company and institution names; higher confidence threshold, see [How to Configure NER](#how-to-configure-ner))
 
 The NER model works with confidence thresholds and can detect entities that don't match fixed patterns or lists. It includes weak and strong whitelists to prevent masking of common words or municipality-specific terms.
 
@@ -408,6 +410,7 @@ labels = ["naam", "name", "adres", "address", "organization", "organisatie"]
 The script uses both Dutch and English labels for better recall. These are first mapped to standardized English tags:
 - "naam"/"name" → `<Name>` or `<[Name]>`
 - "adres"/"address" → `<Address>` or `<[Address]>`
+- "organization"/"organisatie" → `<Organization>` or `<[Organization]>`
 
 These tags are all translated into a specified language using the json-file in src/anonymizer/config/tag_translations.json. Add new languages and/or tags here if you want them translated.
 
@@ -422,7 +425,7 @@ labels = ["naam", "name", "adres", "address", "email", "phone", "organization"]
 ### Other NER Configuration
 
 - **Model selection**: Change the model by modifying the `model_name` parameter
-- **Whitelists**: Edit `WEAK_NER_WHITELIST` and `STRONG_NER_WHITELIST` (see Whitelists section)
+- **Whitelists**: Maintained in `Whitelist Basic.xlsx` (see [Whitelists: Weak and Strong](#whitelists-weak-and-strong)); loaded automatically at construction
 - **Tag format**: The `DISTINCT_TAGS` parameter controls tag format
 
 ---
@@ -540,7 +543,21 @@ In testing on data from Gemeente Rotterdam, the script achieved:
 4. Calculate metrics using formulas above or with the helper script `anonymizer.helpers.scoring`
 5. Results are compiled in Excel for analysis
 
-The developed script performs better than the previously used commercial solution, with improved recall and comparable precision across different types of PII, while maintaining context by providing text for masked items.
+Scores are established through the human evaluation process described above; see the disclaimer on generalisability under Performance Scores.
+
+---
+
+## License
+
+This project is licensed under the European Union Public Licence v1.2 (EUPL-1.2).
+
+- [LICENSE.md](LICENSE.md) — English text (canonical)
+- [LICENSE_NL.md](LICENSE_NL.md) — Dutch text
+
+The EUPL is available in all official EU languages; all versions are equally
+valid. The English text is used here as the reference version.
+
+Copyright City of Rotterdam.
 
 ---
 
