@@ -817,54 +817,133 @@ De drie methoden worden achter elkaar toegepast: **Regex → Lijst → NER**. De
 
 ## Whitelists: Weak en Strong
 
-### Weak whitelist
-Exacte match, o.a.:
+Het script gebruikt twee soorten whitelists om onterechte maskering te voorkomen (het maskeren van niet-gevoelige informatie):
 
-- "Mevrouw", "Meneer"
-- Steden
-- Algemene termen
+### Weak whitelist (exacte match)
 
-### Strong whitelist
-Substring match, o.a.:
+Controleert op een exacte overeenkomst (ongeacht hoofdletters) met de volledige gedetecteerde entiteit. Gebruikt voor:
+- Veelvoorkomende aanhef en voornaamwoorden: "Mevrouw", "Meneer", "Hij", "Zij", "I", "You", enzovoort
+- Gemeentenamen: "Rotterdam", "Amsterdam", "Utrecht", "Den Haag", enzovoort
+- Algemene termen: "Burger", "Family", "Person", enzovoort
+- Tags van andere anonymizers, om dubbele maskering te voorkomen
 
-- Familierelaties
-- Functietitels
-- Wijknamen
-- Adresgerelateerde woorden
+**Voorbeeld**: "Mevrouw" wordt niet gemaskeerd, maar "Mevrouw Jansen" wel.
 
-Beheer via `Whitelist Basic.xlsx`.
+### Strong whitelist (substring-match)
+
+Controleert of een van de whitelist-termen voorkomt binnen de gedetecteerde entiteit (ongeacht hoofdletters). Gebruikt voor:
+- Familierelaties: "Vader", "Moeder", "Broer", "Zus", "Father", "Mother", enzovoort
+- Algemene aanduidingen: "Collega", "Klant", "Medewerker", "Employee", enzovoort
+- Wijknamen die specifiek zijn voor de gemeente (bijvoorbeeld Rotterdamse wijken: "De Esch", "Prins Alexander", enzovoort)
+- Adresgerelateerde termen: "Adres", "Address", "Woning", enzovoort (NER is geneigd 'adresboek' voor een adres aan te zien)
+
+**Voorbeeld**: "Mijn jongere zus" wordt niet gemaskeerd, omdat het "zus" bevat.
+
+### Whitelists bewerken
+
+Whitelists worden beheerd via het Excel-bestand `Whitelist Basic.xlsx`. Zo zijn vermeldingen toe te voegen of te verwijderen zonder de scriptcode aan te passen:
+
+**Voor de whitelists van de NER Anonymizer:**
+1. Open `Whitelist Basic.xlsx`
+2. Ga naar de sheet "NER"
+3. De sheet bevat twee kolommen:
+   - **Kolom Weak**: vermeldingen voor whitelisting op exacte match
+   - **Kolom Strong**: vermeldingen voor whitelisting op substring-match
+4. Voeg vermeldingen toe of verwijder ze (één per rij)
+5. Sla het bestand op
+6. Draai het script opnieuw - de wijzigingen worden automatisch ingeladen
+
+**Voor de whitelist van de List Anonymizer:**
+1. Open `Whitelist Basic.xlsx`
+2. Ga naar de sheet "List"
+3. De sheet bevat één kolom:
+   - **Kolom List**: vermeldingen die de List Anonymizer niet mag maskeren
+4. Voeg vermeldingen toe of verwijder ze (één per rij)
+5. Sla het bestand op
+6. Draai het script opnieuw - de wijzigingen worden automatisch ingeladen
+
+**Let op**: alle whitelist-vermeldingen worden automatisch omgezet naar kleine letters, zodat matching ongeacht hoofdletters werkt.
 
 ---
 
 ## Regexpatronen aanpassen
 
-Patronen staan in `TAGGED_PATTERNS` in `anonymizer.py`.
+De regexpatronen staan in het woordenboek `TAGGED_PATTERNS` in `anonymizer.py` (rond regel 100). Elk patroon is een sleutel-waardepaar, waarbij de sleutel de tagnaam is en de waarde het regexpatroon.
 
-Aanpassen:
+### Bestaande patronen wijzigen:
 
 1. Open `anonymizer.py`
-2. Zoek naar `TAGGED_PATTERNS`
-3. Wijzig regex
-4. Test met sampledata
+2. Zoek het woordenboek `TAGGED_PATTERNS` op
+3. Zoek het patroon dat je wilt wijzigen (bijvoorbeeld "Phone", "Date", "BSN")
+4. Pas de regexstring aan, met behoud van de verbose-opmaak met de `re.VERBOSE`-vlag
+5. Test je wijzigingen op voorbeelddata
+
+### Voorbeelden van patroonwijzigingen:
+
+**Voorbeeld 1: een nieuw datumformaat toevoegen (bijvoorbeeld ISO-formaat JJJJ-MM-DD):**
+```python
+"Date": r"""
+    \b(?:
+        \d{1,2}\s*[\-/.]\s*\d{1,2}\s*[\-/.]\s*\d{2,4}|   # bestaande formaten
+        \d{4}\s*[\-/.]\s*\d{1,2}\s*[\-/.]\s*\d{1,2}|     # bestaande formaten
+        \d{4}-\d{2}-\d{2}                                 # NIEUW: ISO-formaat
+    )\b
+""",
+```
+
+**Voorbeeld 2: een volledig nieuw patroon toevoegen (bijvoorbeeld paspoortnummers):**
+```python
+"Passport": r"\b[A-Z]{2}\d{6,7}\b",  # Formaat: AB1234567
+```
+
+### Tips:
+
+- Gebruik online regextesters (regex101.com) om patronen te ontwikkelen en te testen
+- Begin specifiek en verbreed daarna als de recall te laag is
+- Met de `re.VERBOSE`-vlag zijn patronen over meerdere regels met commentaar mogelijk
+- Patronen worden op volgorde verwerkt; zet specifiekere patronen dus vóór algemenere
 
 ---
 
 ## Lijsten aanpassen
 
-Alle lijsten staan in `ListClassifier Basic.xlsx`.
+De List Anonymizer laadt woordenlijsten uit een Excel-bestand (`src/anonymizer/input_files/ListClassifier Basic.xlsx`, meegebundeld als package-data). Het bestand bevat meerdere sheets, elk voor een andere categorie.
 
-### Nieuwe lijst toevoegen
+### De huidige lijsten:
 
-1. Nieuwe sheet maken  
-2. Kolom "List" toevoegen  
-3. *(Optioneel)* Kolom "Case Sensitive"  
-4. Script genereert automatisch een tag
+- First Name: veelvoorkomende voornamen
+- Last Name: veelvoorkomende achternamen
+- Address: straatnamen en locaties
+- Nationalities: alle nationaliteiten in het Nederlands en Engels
+- Organisation: namen van organisaties (in het Basic-bestand slechts enkele voorbeelden, desgewenst zelf aan te vullen)
 
-### Bestaande lijst wijzigen
+### Een nieuwe lijst toevoegen:
 
-- Bewerk de sheet
-- Opslaan
-- Script laadt het automatisch in
+1. Maak een kopie van `ListClassifier Basic.xlsx` onder een eigen naam, zodat je een eigen versie van de blacklists beheert
+2. Maak een nieuwe sheet met de gewenste categorienaam (bijvoorbeeld "Company")
+3. Zet de kolomkop "List" in cel A1
+4. (Optioneel) Zet de kolomkop "Case Sensitive" in cel B1
+5. Vul kolom A met de te detecteren woorden of woordgroepen (één per rij)
+6. Gebruik je hoofdlettergevoeligheid, zet dan per vermelding 1 (waar) of 0 (onwaar) in kolom B
+7. Sla het bestand op
+8. Geef het nieuwe ListClassifier-bestand mee aan het script (zie de overige instructies); het laadt de nieuwe sheet automatisch in en maakt een bijbehorende tag aan (bijvoorbeeld `<Company>`)
+
+### Een bestaande lijst wijzigen:
+
+1. Open je ListClassifier-bestand
+2. Ga naar de sheet die je wilt aanpassen (bijvoorbeeld "Address")
+3. Voeg vermeldingen toe aan kolom A, verwijder ze of bewerk ze
+4. Pas zo nodig de hoofdlettergevoeligheid aan in kolom B
+5. Sla het bestand op
+
+### Hoofdlettergevoeligheid:
+
+- Voeg een kolom "Case Sensitive" toe (kolom B) met de waarde 0 of 1
+- 0 (of leeg): matching ongeacht hoofdletters
+- 1: matching mét onderscheid tussen hoofd- en kleine letters
+- Bij vermeldingen van meerdere woorden met tussenvoegsels (van, der, de, enzovoort) zijn die tussenvoegsels altijd ongevoelig voor hoofdletters
+
+**Let op**: de sheets First Name en Last Name worden automatisch samengevoegd tot één "Name"-tag, om volledige namen beter te detecteren.
 
 ---
 
