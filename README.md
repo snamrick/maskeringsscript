@@ -591,6 +591,7 @@ Deze repository is de gepubliceerde versie van het anonimiseringsscript, afgelei
 - [NER configureren](#ner-configureren)
 - [Generaliseren naar nieuwe organisatie](#generaliseren-naar-nieuwe-organisatie)
 - [Evaluatiescores](#evaluatiescores)
+- [Licentie](#licentie)
 
 ---
 
@@ -1052,24 +1053,77 @@ CA = anonymizer.CombinedAnonymizer()
 
 ## Evaluatiescores
 
-### Gebruikte metrics
+De prestaties van het anonimiseringsscript worden gemeten met gangbare information-retrieval-metrieken. Deze scores komen tot stand door de uitvoer van het script te vergelijken met testsets die door mensen zijn beoordeeld.
 
-- **Recall** – hoeveel PII correct gemaskeerd
-- **Precision** – hoeveel gemaskeerde items echt PII waren
-- **F3‑score** – recall 3× belangrijker dan precision
+### Belangrijkste metrieken
 
-### Resultaten Rotterdam
+**Recall:**
+Meet welk deel van de daadwerkelijk aanwezige PII het script heeft gedetecteerd en gemaskeerd.
 
-- **Recall:** 93%
-- **Precision:** 92%
-- **F3:** 93%
+Formule: **Recall = TP / (TP + FN)**
 
-Let op: prestaties verschillen per dataset — altijd eerst testen.
+Waarbij:
+- TP (true positives): PII die correct is herkend en gemaskeerd
+- FN (false negatives): PII die is gemist (niet gemaskeerd)
 
-### Hoe berekend
+Een recall van 0,95 betekent dat het script 95% van alle PII in de tekst afvangt.
 
-1. Testset maken (`sample_testset.py` / notebook)
-2. Anonimiseren
-3. Handmatige evaluatie (TP/FP/FN/TN)
-4. Berekenen via `anonymizer.helpers.scoring`
-5. Analyse in Excel
+**Precisie:**
+Meet welk deel van de gemaskeerde items daadwerkelijk PII was (en dus geen loos alarm).
+
+Formule: **Precisie = TP / (TP + FP)**
+
+Waarbij:
+- TP (true positives): PII die correct is herkend en gemaskeerd
+- FP (false positives): niet-PII die ten onrechte is gemaskeerd
+
+Een precisie van 0,95 betekent dat 95% van de gemaskeerde items echt PII was.
+
+**F-score (F3):**
+De F3-score is een gewogen harmonisch gemiddelde dat recall zwaarder laat wegen dan precisie. Dat is van belang bij anonimisering, waar gemiste PII (false negatives) ernstiger is dan overmatige maskering (false positives).
+
+Formule: **F3 = (1 + β²) × (Precisie × Recall) / (β² × Precisie + Recall)**
+
+Waarbij β = 3, zodat recall drie keer zo zwaar weegt als precisie.
+
+### Termen uit de confusion matrix
+
+- **TP (true positive)**: het script heeft PII terecht gemaskeerd
+- **TN (true negative)**: het script heeft niet-PII terecht ongemaskeerd gelaten
+- **FP (false positive)**: het script heeft niet-PII ten onrechte gemaskeerd
+- **FN (false negative)**: het script heeft daadwerkelijke PII niet gemaskeerd
+
+### Prestatiescores
+
+Bij tests op gegevens van de gemeente Rotterdam behaalde het script:
+- **Recall**: 93%
+- **Precisie**: 92%
+- **F3-score**: 93%
+
+**Disclaimer:**
+- Deze scores verschillen per gegevensbron
+- Deze scores vatten de prestaties slechts samen; de werkelijke prestaties zijn genuanceerder. Test het script grondig voordat je het in gebruik neemt.
+
+### Hoe de scores worden berekend
+
+1. Maak een testset aan met `sample_testset.py` of met het notebook `processing_and_testing.ipynb`
+2. Draai het anonimiseringsscript op de testset
+3. Menselijke beoordelaars lopen elk gemaskeerd item na en classificeren het als TP, FP, TN of FN
+4. Bereken de metrieken met bovenstaande formules of met het hulpscript `anonymizer.helpers.scoring`
+5. De resultaten worden in Excel samengebracht voor analyse
+
+De scores komen tot stand via de hierboven beschreven menselijke beoordeling; zie het voorbehoud bij Prestatiescores.
+
+---
+
+## Licentie
+
+Dit project is uitgegeven onder de European Union Public Licence v1.2 (EUPL-1.2).
+
+- [LICENSE.md](LICENSE.md) — Engelse tekst (canoniek)
+- [LICENSE_NL.md](LICENSE_NL.md) — Nederlandse tekst
+
+De EUPL is beschikbaar in alle officiële EU-talen; alle versies zijn even
+rechtsgeldig. De Engelse tekst wordt hier als referentieversie gebruikt.
+
+Copyright gemeente Rotterdam.

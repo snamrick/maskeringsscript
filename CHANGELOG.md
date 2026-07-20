@@ -64,11 +64,19 @@ feitelijk kloppend; het gelijktrekken van de Nederlandse helft volgt. Raakt geen
   (label-mapping, drempel 0,84) maar ontbrak in de opsomming van entiteitstypen en in de
   label-naar-tag-mapping. Beide zijn aangevuld.
 
+- **Nederlandse helft van de README gelijkgetrokken.** De Nederlandse helft was in de praktijk een
+  beknopte samenvatting van de Engelse: 309 tegen 546 regels (57%). De sectiestructuur was al 1:1,
+  maar hele instructieblokken ontbraken — onder meer het bewerken van de whitelist-sheets, de
+  regexvoorbeelden, de hoofdlettergevoeligheid bij lijsten, de NER-drempels en labels, de zes
+  generaliseerstappen, en de formules en confusion-matrixtermen bij de evaluatie. Alle secties
+  staan nu op hetzelfde detailniveau (560 tegen 569 regels, 98%). Doorgevoerd in vier delen langs
+  sectiegrenzen.
+
 ### Toegevoegd
 
-- **Licentiesectie in de README** (EN-helft, met ToC-vermelding). De README verwees nergens naar
-  de licentie. De sectie benoemt EUPL-1.2 en verwijst naar beide taalversies; de bestandsopzet
-  blijft ongewijzigd.
+- **Licentiesectie in de README** (beide helften, met ToC-vermelding). De README verwees nergens
+  naar de licentie. De sectie benoemt EUPL-1.2 en verwijst naar beide taalversies; de
+  bestandsopzet blijft ongewijzigd.
 
 ---
 
