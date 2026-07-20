@@ -949,23 +949,104 @@ De List Anonymizer laadt woordenlijsten uit een Excel-bestand (`src/anonymizer/i
 
 ## NER configureren
 
-In `anonymizer.py`:
+Het NER-onderdeel (Named Entity Recognition) gebruikt het GLiNER-model om namen en adressen in context te detecteren. De configuratie verloopt via variabelen in `anonymizer.py`.
 
-- `NER_CONFIDENCE_DICT`: thresholds
-- `labels`: type entiteiten
-- Whitelists
-- Taalopties via `tag_translations.json`
+### Confidence-drempels
+
+Het woordenboek `NER_CONFIDENCE_DICT` legt per entiteitstype de minimale confidence-drempel vast:
+
+```python
+NER_CONFIDENCE_DICT = {
+    "Name": 0.3,           # drempel van 30% voor namen
+    "Address": 0.3,        # drempel van 30% voor adressen
+    "Organization": 0.84   # drempel van 84% voor organisaties
+}
+```
+
+- Lagere waarden (0,1-0,3): hogere recall, mogelijk meer onterechte maskeringen
+- Middenwaarden (0,4-0,6): evenwichtige aanpak
+- Hogere waarden (0,7-0,9): hogere precisie, mogelijk gemiste entiteiten
+
+### Tags
+
+Het NER-model is ingesteld op specifieke entiteitstypen. De labels staan in de methode `anonymize`:
+
+```python
+labels = ["naam", "name", "adres", "address", "organization", "organisatie"]
+```
+
+Het script gebruikt zowel Nederlandse als Engelse labels voor een betere recall. Die worden eerst omgezet naar gestandaardiseerde Engelse tags:
+- "naam"/"name" → `<Name>` of `<[Name]>`
+- "adres"/"address" → `<Address>` of `<[Address]>`
+- "organization"/"organisatie" → `<Organization>` of `<[Organization]>`
+
+Al deze tags worden vervolgens vertaald naar de ingestelde taal via het json-bestand in src/anonymizer/config/tag_translations.json. Voeg daar nieuwe talen en/of tags toe als je die vertaald wilt hebben.
+
+### Entiteitstypen die het GLiNER-model ondersteunt
+
+Het onderliggende model (E3-JSI/gliner-multi-pii-domains-v1) ondersteunt veel entiteitstypen. Pas de labels-lijst aan om er meer toe te voegen:
+
+```python
+labels = ["naam", "name", "adres", "address", "email", "phone", "organization"]
+```
+
+### Overige NER-configuratie
+
+- **Modelkeuze**: wijzig het model via de parameter `model_name`
+- **Whitelists**: worden beheerd in `Whitelist Basic.xlsx` (zie [Whitelists: Weak en Strong](#whitelists-weak-en-strong)) en bij constructie automatisch ingeladen
+- **Tagformaat**: de parameter `DISTINCT_TAGS` bepaalt het tagformaat
 
 ---
 
 ## Generaliseren naar nieuwe organisatie
 
-1. Regex‑patronen nalopen
-2. Wijknamen (strong whitelist) aanpassen
-3. Straatnamenlijst vervangen of uitbreiden
-4. Organisatienamen bijwerken
-5. Namenlijsten uitbreiden indien nodig
-6. Testen, evalueren en thresholds bijstellen
+Dit script is ontwikkeld voor gegevens van de gemeente Rotterdam en later aangepast voor Utrecht. Volg deze stappen om het voor een nieuwe instelling of gemeente te gebruiken:
+
+### 1. Regexpatronen nalopen en aanpassen
+
+- Ga na of de formaten van registratienummers aansluiten op de systemen van jouw instelling
+- Algemene patronen zoals datums, telefoonnummers en e-mailadressen werken doorgaans overal
+- Let vooral op de patronen in `ID_Number`; die kunnen specifiek zijn voor Rotterdam of Utrecht
+- Voorbeeld: gebruikt jouw gemeente een ander formaat voor zaaknummers, werk dan de regex in `TAGGED_PATTERNS` bij:
+```python
+from anonymizer import anonymizer
+anonymizer.TAGGED_PATTERNS["ID_Number"] = "updated_regex"
+CA = anonymizer.CombinedAnonymizer()
+# Enzovoort.
+```
+
+### 2. Wijk- en gebiedsnamen bijwerken (strong whitelist NER)
+
+- Open je whitelist-bestand en ga naar de sheet "NER"
+- Vervang in de kolom "Strong" de Rotterdamse en Utrechtse wijken door de gebiedsnamen van jouw keuze
+- Zo voorkom je dat het NER-model gebiedsnamen als adres maskeert
+- Sla het bestand op
+
+### 3. De adreslijst bijwerken
+
+- Open je ListClassifier-bestand
+- Ga naar de sheet "Address"
+- Vervang de straatnamen door straten uit jouw stad, provincie, enzovoort
+- Tip: voor Nederlandse straatnamen kun je de hulpmodule `anonymizer.helpers.streetnames` gebruiken.
+
+### 4. Overige locatiegebonden verwijzingen bijwerken
+
+- Open je whitelist-bestand en loop zowel de sheet "NER" als "List" na
+- Voeg de naam van je eigen organisatie toe, zodat die niet gemaskeerd wordt
+- Werk andere organisatienamen bij of verwijder ze, afhankelijk van wat je nodig hebt
+
+### 5. De lijsten First Name en Last Name aanpassen (optioneel)
+
+- De meegeleverde lijsten zijn redelijk universeel voor Nederlandse namen
+- Heeft jouw gemeente specifieke demografische kenmerken, overweeg die dan toe te voegen
+- Werk de sheets "First Name" en "Last Name" in je ListClassifier-bestand bij
+
+### 6. Nalopen en testen
+
+- Draai het script op een kleine steekproef van je eigen gegevens
+- Loop de uitvoer handmatig na op over- en ondermaskering
+- Stel confidence-drempels, whitelists en patronen zo nodig bij
+- Maak een testset aan en evalueer de prestaties (zie de sectie Evaluatiescores)
 
 ---
 
