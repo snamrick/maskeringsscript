@@ -11,6 +11,39 @@ golven doorgevoerd: **golf 1** op 2026-06-25 (BSN-lek, CLI-vlaggen, packaging,
 repo-URL, hygiëne) en **consolidatie + scoring-guard** op 2026-06-26. De item-codes
 (V01, V02, …) verwijzen naar de interne verbeteringen-prioriteitenmatrix.
 
+## [Niet uitgebracht]
+
+Vierde golf, fase 1: structurele opschoning zonder gedragswijziging op het standaardpad
+(`CombinedAnonymizer`, taal `nl`, default mask). Byte-identiek geverifieerd via de
+regressie-harness (regex-snapshot 0 delta; volledige recall-gate OK, alle categorieën 1,00,
+residu-PII 0). Geen versiebump. (`src/anonymizer/anonymizer.py`)
+
+### Gewijzigd
+- **NER-whitelist als instance-state i.p.v. module-globaal** (V13). De muteerbare module-globale
+  `WEAK_NER_WHITELIST` is verwijderd. `RegexAnonymizer`/`ListAnonymizer` exposen hun output-tags
+  nu als instance-state (`weak_ner_tags`); `NERAnonymizer` accepteert ze expliciet via de nieuwe
+  parameter `extra_weak_whitelist`, en `CombinedAnonymizer` bedraadt regex+lijst → NER. Dit
+  voorkomt state-bleed tussen instanties (en onbegrensde groei van de lijst) in langlopende
+  processen. **Gedragswijziging voor direct API-gebruik:** een standalone `NERAnonymizer()` die
+  niet via `CombinedAnonymizer` loopt, erft niet langer impliciet de tags van eerder
+  geconstrueerde Regex/List-anonymizers; geef die desgewenst expliciet mee via
+  `extra_weak_whitelist`. Het `CombinedAnonymizer`-pad is output-equivalent (0 snapshot-delta).
+- **Postcode-postprocessing robuuster** (V15). De hardcoded `'<Postcode>'`-tag in de
+  regex-postprocessing wordt nu via `TRANSLATIONS`/`mask` opgebouwd, net als de overige tags.
+  No-op voor `nl` en `en` (beide vertalen `Postcode → "Postcode"`) en voor de default mask; tevens
+  een latente fix voor afwijkende mask-/taalconfiguraties, waar de oude hardcoded tag niet op de
+  werkelijk geproduceerde tag matchte.
+- **Order-contract `TAGGED_PATTERNS` vastgelegd** (V18). De betekenisvolle insertievolgorde
+  (specifiek → breed) is expliciet gedocumenteerd in de `TAGGED_PATTERNS`-header en de
+  `_build_patterns`-docstring; de characterization-snapshot in de regressie-harness blijft de
+  wachter. Geen codewijziging.
+- **Whitelist-lus: context-slice uit de per-item-lus gehesen** (V19, deel). De
+  context-slice + lowercasing wordt nu één keer per woordpositie berekend i.p.v. per
+  whitelist-item (constante-factor-winst, output-equivalent). De Aho-Corasick-herschrijving is
+  bewust uitgesteld (output-equivalentierisico).
+
+---
+
 ## [1.1.3] — 2026-06-29
 
 Derde golf: precisie van de Credit_Card-detectie verhoogd. Raakt de maskeer-output, dus
