@@ -11,12 +11,15 @@ golven doorgevoerd: **golf 1** op 2026-06-25 (BSN-lek, CLI-vlaggen, packaging,
 repo-URL, hygiëne) en **consolidatie + scoring-guard** op 2026-06-26. De item-codes
 (V01, V02, …) verwijzen naar de interne verbeteringen-prioriteitenmatrix.
 
-## [Niet uitgebracht]
+## [1.1.4] — 2026-07-20
+
+Gemengde uitgave: de vierde golf fase 1 (code) en de uniformering van de documentatie. Geen van
+beide wijzigt het gedrag van het script.
 
 Vierde golf, fase 1: structurele opschoning zonder gedragswijziging op het standaardpad
 (`CombinedAnonymizer`, taal `nl`, default mask). Byte-identiek geverifieerd via de
 regressie-harness (regex-snapshot 0 delta; volledige recall-gate OK, alle categorieën 1,00,
-residu-PII 0). Geen versiebump. (`src/anonymizer/anonymizer.py`)
+residu-PII 0). (`src/anonymizer/anonymizer.py`)
 
 ### Gewijzigd
 - **NER-whitelist als instance-state i.p.v. module-globaal** (V13). De muteerbare module-globale
