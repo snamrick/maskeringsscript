@@ -77,6 +77,12 @@ feitelijk kloppend; het gelijktrekken van de Nederlandse helft volgt. Raakt geen
 - **Licentiesectie in de README** (beide helften, met ToC-vermelding). De README verwees nergens
   naar de licentie. De sectie benoemt EUPL-1.2 en verwijst naar beide taalversies; de
   bestandsopzet blijft ongewijzigd.
+- **Codecommentaar consistent Engelstalig** (`anonymizer.py`, `scoring.py`). Het oorspronkelijke
+  script is volledig Engelstalig becommentarieerd; het Nederlandstalige commentaar dat in latere
+  wijzigingsrondes is toegevoegd, is teruggebracht naar het Engels. Het betreft dertien blokken en
+  één docstring. Geverifieerd dat uitsluitend commentaar- en docstringregels zijn gewijzigd en
+  geen enkele coderegel. Bijvangst: hiermee verdwijnen de laatste niet-ASCII-tekens uit de
+  broncommentaren.
 
 ---
 
