@@ -685,31 +685,46 @@ Gedetecteerde categorieën o.a.:
 
 ## Waarom is dit script ontwikkeld
 
-Rotterdam gebruikte een niet‑transparant extern script zonder broncode.  
-Doelen van de nieuwe aanpak:
+Tot nu toe gebruikte de gemeente Rotterdam een algoritme om teksten te maskeren waarvan zij de broncode niet in handen had. Daardoor was er weinig zicht op de werking en konden andere overheidsorganisaties het niet eenvoudig gebruiken. De wens was een eigen algoritme te ontwikkelen dat:
 
-- Transparantie  
-- Deelbaar met andere overheden  
-- Hoge prestaties  
-- Aanpasbaarheid via lijsten en configuratie  
-- Gebruik van moderne technieken (regex + lijsten + NER)
+- Transparant en aanpasbaar is
+- Gedeeld kan worden met andere overheden
+- Voldoet aan de eisen van privacy en informatiebeveiliging
+
+**Doel van het project:**
+Het doel was een werkend Python-script op te leveren dat gevoelige informatie in tekst automatisch herkent en vervangt, zoals namen, adressen of burgerservicenummers. Het moest goed presteren, goed uitlegbaar zijn en eenvoudig toepasbaar voor andere overheden.
+
+**Wat is opgeleverd:**
+- Een werkend maskeerscript dat herleidbare informatie in teksten vervangt door neutrale codes (bijvoorbeeld `<Naam>`, `<BSN>`)
+- Het script werkt op basis van verschillende technieken: herkenning van vaste patronen (zoals bij telefoonnummers), taalanalyse (NER: Named Entity Recognition) en lijstgebaseerde matching
+- Gebruikers kunnen uitzonderingen en aanvullingen zelf beheren via lijsten en configuratiebestanden
+- Het maskeerscript presteert goed: het vangt veel correcte gevallen af (hoge recall) en maskeert weinig onnodige woorden (goede precisie)
+- Het script is geschreven in Python en is gereed om als open source te worden gedeeld
+- Er is uitgebreide documentatie opgeleverd voor technisch gebruik
 
 ---
 
 ## Het script uitvoeren
 
-### 1. CLI
+Het script vraagt geen krachtige computer - het draait op een gewone laptop met Python erop.
 
+Het script is op drie manieren te gebruiken:
+
+### 1. Commandoregel (CLI)
+
+Draai de gecombineerde anonymizer op een Excel-bestand:
 ```bash
 python -m anonymizer input.xlsx output_masked.xlsx --text-column Toelichting_unmasked
 ```
 
-### 2. Python
+### 2. Python-bibliotheek
 
+Importeer en gebruik het in je eigen code:
 ```python
 from anonymizer import anonymizer
 import pandas as pd
 
+# Optioneel: eigen blacklists en whitelists gebruiken
 anonymizer.LIST_PATH = "Path/to/blacklist.xlsx"
 anonymizer.WHITELIST_PATH = "Path/to/whitelist.xlsx"
 
@@ -719,56 +734,84 @@ df["masked_text"] = df["original_text"].map(an)
 df.to_excel("output.xlsx", index=False)
 ```
 
-### 3. Notebook
+### 3. Jupyter Notebook
 
-Gebruik `tests/processing_and_testing.ipynb`.
+Gebruik het notebook `tests/processing_and_testing.ipynb` voor begeleide gegevensverwerking, met voorbeelden van het inladen, schoonmaken, maskeren en samplen van gegevens.
 
 ---
 
 ## Hoe werkt het script
 
-De pipeline werkt in drie stappen:
+Het script gebruikt een sequentiële aanpak in drie stappen om PII te detecteren en te maskeren:
 
-### 1. Regex Anonymizer
-Detecteert vaste patronen zoals datums, geldbedragen, e‑mails, postcodes, BSN/IBAN/KVK, telefoons, leeftijden, IP‑adressen, etc.  
-Alle patronen staan in `TAGGED_PATTERNS`.
+### 1. Regex Anonymizer (klasse RegexAnonymizer)
 
----
+Gebruikt reguliere expressies om PII met een vast patroon te detecteren, zoals:
+- Datums en tijden: Date (26-02-2025, 2025-02-26), Date_Ext (3 april 2024, 21e van Januari)
+- Geldbedragen: Money (€216,62, Euro 8,50)
+- Getallen: Number (342,50, 1.234,56) - decimaalnotatie in euro-stijl
+- Telefoonnummers: Phone (+31 6 12345678, 06-12345678, 088 12 24 44 00)
+- E-mailadressen: Email
+- URL's: URL (met uitzondering van rotterdam.nl-domeinen)
+- Postcodes: Postcode (1234 AB)
+- Kentekens: Licence_Plate (AA-12-BB, 12-AB-34, enzovoort)
+- Financiële identificatoren: IBAN, BSN (met elfproef-validatie), KVK, BTW
+- Registratienummers: ID_Number (zaaknummers, schadenummers, vergunningnummers, klantnummers, aanvraagnummers, meldingnummers, complimentnummers, aktenummers, agentnummers, contractnummers)
+- Leeftijden: Age (74 jaar oud, 25-jarige)
+- Netwerk: IP_Address (192.168.1.1)
+- Creditcards: Credit_Card (getallen van 13 t/m 19 cijfers)
 
-### 2. List Anonymizer
-Gebruikt `ListClassifier Basic.xlsx` om o.a. te detecteren:
+De regexpatronen staan in het woordenboek `TAGGED_PATTERNS` en zijn aan te passen. Patronen met een hoge specificiteit worden als eerste toegepast, gevolgd door bredere patronen, om de recall te maximaliseren met behoud van precisie.
 
-- Voor- en achternamen
-- Straatnamen
-- Nationaliteiten
-- Organisaties
+### 2. List Anonymizer (klasse ListAnonymizer)
 
-Functies:
+Vergelijkt woorden met samengestelde lijsten uit een Excel-bestand (`ListClassifier Basic.xlsx`):
+- Voornamen en achternamen (samengevoegd tot één "Name"-tag)
+- Straatnamen en adressen
+- Overige eigen lijsten, afhankelijk van de configuratie
 
-- Fuzzy matching via SymSpell
-- Multi‑word matching
-- Whitelists
-- Initialenherkenning
-- Huisnummer‑herkenning
-- Merging van meerdere tags
+Mogelijkheden:
+- Matching met en zonder onderscheid tussen hoofd- en kleine letters
+- Detectie van woordgroepen (bijvoorbeeld "van der Berg" en "Paul Krugerstraat")
+- SymSpell voor typefoutcorrectie (fuzzy matching)
+- Whitelists om onterechte maskering te voorkomen
+- Automatisch samenvoegen van opeenvolgende naamtags en afhandeling van initialen en huisnummers
 
----
+**Nabewerking bij namen:**
+Na het detecteren van losse naamdelen voert de List Anonymizer een extra opschoning uit:
+- **Opeenvolgende namen samenvoegen**: meerdere `<Naam>`-tags achter elkaar worden samengevoegd tot één tag
+- **Initialenherkenning**: initialen vóór of ná een naam worden meegemaskeerd:
+  - "J. Jansen" → `<Naam>`
+  - "Jansen J." → `<Naam>`
+  - "J.P. de Vries" → `<Naam>`
 
-### 3. NER Anonymizer
-Gebruikt GLiNER voor contextuele detectie van:
+**Nabewerking bij adressen:**
+- **Huisnummers**: getallen direct vóór of ná een adrestag worden meegemaskeerd:
+  - "Hoofdstraat 42" → `<Adres>`
+  - "42 Hoofdstraat" → `<Adres>`
 
-- Namen
-- Adressen
+### 3. NER Anonymizer (klasse NERAnonymizer)
 
-Werkt met confidence thresholds en (weak/strong) whitelists.  
-Voert post‑processing uit voor initialen en huisnummers.
+Gebruikt het GLiNER-model (Generalist and Lightweight Named Entity Recognition) om entiteiten in context te detecteren:
+- Namen (persoonsnamen in uiteenlopende contexten)
+- Adressen (locatievermeldingen)
+- Organisaties (bedrijfs- en instellingsnamen; hogere confidence-drempel, zie [NER configureren](#ner-configureren))
 
----
+Het NER-model werkt met confidence-drempels en detecteert entiteiten die niet aan vaste patronen of lijsten voldoen. Het beschikt over een weak en een strong whitelist om te voorkomen dat veelvoorkomende woorden of gemeentespecifieke termen worden gemaskeerd.
 
-### CombinedAnonymizer
+**Nabewerking bij namen:**
+- **Opeenvolgende namen samenvoegen**: meerdere `<Naam>`-tags achter elkaar worden samengevoegd tot één tag
+- **Initialenherkenning**: initialen direct vóór een gedetecteerde naam worden meegemaskeerd
 
-Volgorde: **Regex → Lijst → NER**  
-Dit verhoogt recall en behoudt precision.
+**Nabewerking bij adressen:**
+- **Huisnummers**: getallen direct ná een adrestag worden meegemaskeerd
+
+### Gecombineerde aanpak (klasse CombinedAnonymizer)
+
+De drie methoden worden achter elkaar toegepast: **Regex → Lijst → NER**. Deze gelaagde aanpak zorgt voor:
+- Hoge recall: verschillende technieken vangen verschillende soorten PII af
+- Goede precisie: latere stappen slaan al gemaskeerde inhoud over
+- Flexibiliteit: elk onderdeel is afzonderlijk te configureren
 
 ---
 
