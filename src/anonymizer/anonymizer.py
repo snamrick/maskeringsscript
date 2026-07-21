@@ -506,6 +506,10 @@ class RegexAnonymizer:
         # TRANSLATIONS/mask instead of a hardcoded '<Postcode>' (no-op for nl/en).
         postcode_tag = self._mask.format(tag=TRANSLATIONS[TAG_LANGUAGE].get("Postcode", "Postcode"))
         text = re.sub(rf'({re.escape(postcode_tag)})\s+(\d+[A-Za-z]?)\b', postcode_tag, text)
+
+        # Post processing: mask a signature name after a closing greeting (deterministic;
+        # NER misses names in signature position, so handle it in the regex layer).
+        text = self._mask_signature_names(text)
         return text
     
     # Words to be checked for numbers right after them ('balie 12', 'sector 3A')
@@ -518,6 +522,24 @@ class RegexAnonymizer:
         pattern = re.compile(rf'({self._NUMBER_INDICATORS})(\s*[\-:]*\s*)(\d+)\b', re.IGNORECASE)
         text = pattern.sub(rf'\1\2{self._mask.format(tag=TRANSLATIONS[TAG_LANGUAGE].get("ID_Number", "ID_Number"))}', text)
         return text
+
+    # Closing greeting followed by a signature name on the next line. The greeting is
+    # matched case-insensitively (Dutch language data); the name is anchored on real
+    # initials ("X.") case-sensitively and then masked to the end of the line, so
+    # multi-part surnames ("el Amrani", "de Vries") leave no residue. Deliberately strict
+    # on the initials anchor so ordinary sentences are not over-masked.
+    _SIGN_OFF_RE = re.compile(
+        r"(?m)^[ \t]*"
+        r"(?i:(?:met\s+(?:vriendelijke|hartelijke|de\s+meeste)\s+)?"
+        r"(?:groet(?:en)?|hoogachtend|hoogachting|(?:met\s+)?dank))"
+        r"[ \t]*,?[ \t]*[\r\n]+[ \t]*"
+        r"(?P<name>(?:[A-Z]\.[ \t]*){1,3}[^\r\n]*\S)"
+    )
+
+    def _mask_signature_names(self, text: str) -> str:
+        """Mask an initials+surname signature that follows a closing greeting on its own line."""
+        name_tag = self._mask.format(tag=TRANSLATIONS[TAG_LANGUAGE].get("Name", "Name"))
+        return self._SIGN_OFF_RE.sub(lambda m: m.group(0).replace(m.group("name"), name_tag), text)
 
     # BSN indicators: a BSN-shaped number in this context is PII even when it fails
     # the eleven-test (mistyped but real). Deliberately strict (no letters between
