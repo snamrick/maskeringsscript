@@ -11,6 +11,23 @@ golven doorgevoerd: **golf 1** op 2026-06-25 (BSN-lek, CLI-vlaggen, packaging,
 repo-URL, hygiëne) en **consolidatie + scoring-guard** op 2026-06-26. De item-codes
 (V01, V02, …) verwijzen naar de interne verbeteringen-prioriteitenmatrix.
 
+## [1.1.5] — 2026-07-21
+
+Golf 4, fase 2 (eerste item): sluit een recall-lek in de ondertekening van brieven.
+Output-rakend; geverifieerd via de regressie-harness (geen harde recall-daling per
+categorie, residu-PII 0; de regex-snapshot beweegt alleen op ondertekening-records).
+
+### Opgelost
+- **Ondertekeningsnaam na afsluitgroet werd niet gemaskeerd** (recall-lek). Een
+  afzendernaam (initiaal(en) + achternaam) op een eigen regel direct na een afsluitgroet
+  ("Met vriendelijke groet", "Hoogachtend", "Groet", "Met dank", …) ontsnapte aan de hele
+  pijplijn (regex + lijst + NER), omdat NER de naam in signatuur-positie mist.
+  `RegexAnonymizer` kreeg hiervoor een deterministische sign-off-regel (`_SIGN_OFF_RE` /
+  `_mask_signature_names`): de groet wordt hoofdletter-ongevoelig herkend, de naam wordt
+  geankerd op echte initialen ("X.") en tot het regeleinde gemaskeerd, zodat meerdelige
+  achternamen ("el Amrani", "de Vries") geen restant achterlaten.
+  (`src/anonymizer/anonymizer.py`)
+
 ## [1.1.4] — 2026-07-20
 
 Gemengde uitgave: de vierde golf fase 1 (code) en de uniformering van de documentatie. Geen van
